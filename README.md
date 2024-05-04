@@ -1,6 +1,9 @@
 # BeamHardening-Correction
 This repository allows to correct the beam-hardening effect in computerized tomography assuming to know the spectrum of the source and the type of materials.
 
+## References
+The code here implements the results from
+* G. Rigaud, "On Analytical Solutions to Beam-Hardening", Sensing and Imaging, 2017, 18:5, 17pp
 
 ## Beam-hardening
 
