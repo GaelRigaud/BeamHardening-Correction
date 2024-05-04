@@ -5,6 +5,9 @@ This repository allows to correct the beam-hardening effect in computerized tomo
 The code here implements the results from
 * G. Rigaud, "On Analytical Solutions to Beam-Hardening", Sensing and Imaging, 2017, 18:5, 17pp
 
+The implementation of CT-data as well as the reconstruction techniques, in MyLibrary, corresponds to the repository <a href="https://github.com/GaelRigaud/XRay-Transform">GaelRigaud/XRay-Transform</a>. See this repository for further informations.
+
+
 ## Beam-hardening
 
 ### Monochromatic source 
