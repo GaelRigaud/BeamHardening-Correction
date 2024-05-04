@@ -49,7 +49,7 @@ $$-\ln (B(\mathcal{P}f_1,\mathcal{P}f_2)) \approx a \mathcal{P}f_2 + c \ln\left(
 Without more prior information about $\mathcal{P}f_1$ and $\mathcal{P}f_2$, this formula does not provide a unique solution to reverse the effect of beam-hardening but enables a simpler interpretation. However, if we consider homogeneous objects, the formula becomes invertible.
 
 
-#### Inversion for homogeneous objects
+### Inversion for homogeneous objects
 
 In the case of homogeneous objects the functions $f_1$ and $f_2$ are constant with respective values $a_1,a_2>0$, i.e.
 $$f_E(\mathbf{x}) = (a_1 E^{-3} + a_2 C(E)) f(\mathbf{x})\%$$
@@ -80,4 +80,4 @@ The correction is then performed by <code>EvalCorrection(g, alpha, beta, c)</cod
 
 It is of course possible to use these functions directly instead of <code>BHcorrection()</code>.
 
-Standard reconstruction approaches such as the FBP can then be applied.
+Standard reconstruction approaches such as the FBP or ART can then be applied, see <a href="https://github.com/GaelRigaud/XRay-Transform">GaelRigaud/XRay-Transform</a>. The overall approach performs well for heterogeneous objects but, in that case, the tuning (i.e. <code>tau</code>) is more important.
