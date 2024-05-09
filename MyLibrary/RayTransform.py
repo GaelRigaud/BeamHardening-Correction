@@ -134,7 +134,7 @@ See corresponding documentations
     >>> gRT   = Xobj.RadonTransform(f)
     >>> fFBP  = Xobj.FBP(gRT,filtertype='hann')
     >>> fK    = Xobj.ART(g,sweeps=5)
-
+    
 References
 ----------
     Toft, P.; "The Radon Transform - Theory and Implementation", 
@@ -147,8 +147,8 @@ References
 
     Louis, A. K.; "Combining Image Reconstruction and Image Analysis with 
                 Application to 2D-tomography", 
-                M J. Imaging Sciences 1 pp. 188-208, 2008.   
-                
+                M J. Imaging Sciences 1 pp. 188-208, 2008.
+    
     """
     
     
@@ -522,7 +522,11 @@ References
         dphi = (phi[1]-phi[0])
         dp   = (p[1]-p[0])
         
-        gf   = utils.filterdata(g,filtertype)
+        wtrapz  = np.ones(phi.shape)
+        wtrapz[0],wtrapz[-1] = (0.5,0.5) 
+        Wtrapz  = np.tile(wtrapz, (p.shape[0],1))
+        
+        gf   = Wtrapz * utils.filterdata(g,filtertype)
         
         if method == 'integral':
             f  = self.backprojection(gf, method='FBP')
@@ -554,7 +558,7 @@ References
         Returns
         -------
         a numpy.ndarray type matrix
-        
+
         References
         ----------
         Louis, A. K.; "Combining Image Reconstruction and Image Analysis with 
@@ -575,7 +579,11 @@ References
             Np,Nphi = (p.shape[0], phi.shape[0])
             f       = np.zeros((N,N))   
             P       = np.tile(p, (Nphi,1)).transpose()
+            wtrapz  = np.ones(phi.shape)
+            wtrapz[0],wtrapz[-1] = (0.5,0.5) 
             Phi     = np.tile(phi, (Np,1))
+            Wtrapz  = np.tile(wtrapz, (Np,1))
+            wtrapz  = Wtrapz.flatten()
             gvec    = g.flatten()
             pvec    = P.flatten()
             phivec  = Phi.flatten()
@@ -588,7 +596,7 @@ References
                 for y in range(N):      
                     z = (pvec - (x-center[1])*n1 - (y-center[0])*n2)/(np.sqrt(2)*gamma)
                     kern =  1 - 2*z*special.dawsn(z)            
-                    f[y,x] = gvec.dot(kern)
+                    f[y,x] = gvec.dot(wtrapz * kern)
             
             
             f[f<0] = 0
@@ -604,16 +612,12 @@ References
             
             Np,Nphi = (p.shape[0], phi.shape[0])
             f = np.zeros((N,N))    
-            #A = np.tile(p, (Nphi,1)).transpose()
-            B = np.tile(phi, (Np,1))
-            pvec = np.tile(self.getPfromD(), (Nphi,1)).transpose().flatten()#(A.flatten())
-            
-            
-            phivec = B.flatten() + np.arcsin(pvec/self.distOS)     
-            gvec = g.flatten()
-            n1,n2   = (np.cos(phivec), np.sin(phivec))
-            kern = np.zeros((N**2,Np*Nphi))
-            jacobi = np.tile(self.getDetJacobi(), (Nphi,1)).transpose().flatten()#(A.flatten())
+            pvec = np.tile(self.getPfromD(), (Nphi,1)).transpose().flatten()         
+            phivec = np.tile(phi, (Np,1)).flatten() + np.arcsin(pvec/self.distOS)     
+            gvec   = g.flatten()
+            n1,n2  = (np.cos(phivec), np.sin(phivec))
+            kern   = np.zeros((N**2,Np*Nphi))
+            jacobi = np.tile(self.getDetJacobi(), (Nphi,1)).transpose().flatten()
             start_time = time.time()       
                 
             for x in range(N):
@@ -706,21 +710,30 @@ References
         if self.geometry == 'fanbeam':  Np, Nphi = self.parameterD.shape[0:2]
         else : Np,Nphi    = (self.parameterDet.shape[0], self.parameterRot.shape[0])
         
-        j=1
-        for i in range(sweeps):
-            for k in np.random.permutation(Np*Nphi):
-                
-                if k%Np == 0: 
-                    utils.progressbar(j,sweeps*Nphi,'ART')
+        j = 0
+        
+        
+        if self.datatype == 'matrix':
+            normR = np.zeros(Np*Nphi)
+            for k in range(Np*Nphi): normR[k] = np.dot(self.matrix[k,:],self.matrix[k,:])
+        
+            for i in range(sweeps):
+                for k in np.random.choice(range(Np*Nphi), p=normR/np.sum(normR), size=(Np*Nphi)):
                     j+=1
-                
-                
-                if self.datatype == 'matrix': Rvec = self.matrix[k,:]
-                elif self.datatype == 'sparse': Rvec = utils.getRowfromSparse(self.matrix,Np*Nphi,N**2,k)
-            
-                normR = np.dot(Rvec,Rvec)
-                if normR>10**(-5): f += relax * (g[k]-np.dot(Rvec,f))/normR*Rvec
-                f[f<0] = 0
+                    if j%Np == 0: utils.progressbar(j,sweeps*Nphi*Np,'ART')
+                    Rvec = self.matrix[k,:]
+                    f += relax**i * (g[k]-np.dot(Rvec,f))/normR[k]*Rvec
+                    f[f<0] = 0
+                    
+        elif self.datatype == 'sparse':
+            for i in range(sweeps):
+                for k in np.random.permutation(Np*Nphi):
+                    j+=1
+                    if j%Np == 0: utils.progressbar(j,sweeps*Nphi*Np,'ART')
+                    Rvec = utils.getRowfromSparse(self.matrix,Np*Nphi,N**2,k)
+                    normR = np.dot(Rvec,Rvec)
+                    if normR>10**(-5): f += relax**i * (g[k]-np.dot(Rvec,f))/normR*Rvec
+                    f[f<0] = 0
 
         
         end_time = time.time()
@@ -800,18 +813,16 @@ References
         y = np.arange(0,N,1)
         xx,yy = np.meshgrid(x-center[1],y-center[0])
         
-        dphi = phi[1]-phi[0]
         start_time = time.time()  
     
         for k in range(Nphi):
             utils.progressbar(k,Nphi-1,method)
-            p_i     = n1[k]*xx+n2[k]*yy
-            f      += np.interp(p_i, p, g[:,k])
+            f +=  np.interp(n1[k]*xx+n2[k]*yy, p, g[:,k])
                             
         end_time = time.time()
         elapsed_time = int(10*(end_time - start_time))/10
         print('  '+f'Time elapsed: {elapsed_time} seconds',end='\n',flush=True)  
-        return dphi*f
+        return (phi[1]-phi[0])*f
     
     
     def getPfromD(self):
